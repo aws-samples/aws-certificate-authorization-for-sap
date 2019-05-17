@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'aws-sap-cert-auth SAM Template for SAP Cert based auth using Lambda
+
+  '
+Globals:
+  Function:
+    Timeout: 29
+Parameters:
+  ServerKeyParameterStore:
+    Description: Name of the parameter store where SAP Server Key is stored
+    Type: String
+  UserKeyParameterStore:
+    Description: Name of the parameter store where User Server Key is stored
+    Type: String
+  S3BucketForKeys:
+    Description: Name of the S3 bucket where the certificates and keys will be stored
+    Type: String
+  ServerCertFile:
+    Description: Name of the Server Certificate file
+    Type: String
+  ServerKeyFile:
+    Description: Name of the Server Key file
+    Type: String
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: aws-sap-cert-auth
+    Description: Lambda function for single signon to SAP using user certificates
+    Author: KK Ramamoorthy
+    SpdxLicenseId: MIT
+    LicenseUrl: s3://967217190592-sam-apps/4ae9b13413d0c0f6c04a043f00f3d8e7
+    ReadmeUrl: s3://967217190592-sam-apps/2772119fb1559c8fd42a9da4a51ff7f7
+    Labels:
+    - saponaws
+    - sap
+    - lambdaauth
+    - certificateauth
+    HomePageUrl: https://github.com/aws-samples/aws-lambda-sap-oauth
+    SemanticVersion: 0.0.1
+    SourceCodeUrl: https://github.com/aws-samples/aws-lambda-sap-oauth
+Resources:
+  SAPUserCertGeneratorLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: aws-sap-user-cert-generator
+      Description: Lamda Layer to generate user certificate for SAP
+      ContentUri: s3://967217190592-sam-apps/452ebcb3a4a4953ca2dec1045dffac3a
+      CompatibleRuntimes:
+      - nodejs8.10
+      LicenseInfo: Available under the MIT-0 license.
+      RetentionPolicy: Retain
+  SAPUserCertAuthTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: aws-sap-user-cert-auth-test
+      CodeUri: s3://967217190592-sam-apps/4f92a59b63087071d08dc4256cce34ee
+      Handler: app.lambdaHandler
+      Runtime: nodejs8.10
+      Policies:
+      - S3CrudPolicy:
+          BucketName:
+            Ref: S3BucketForKeys
+      - SSMParameterReadPolicy:
+          ParameterName:
+            Ref: ServerKeyParameterStore
+      - SSMParameterReadPolicy:
+          ParameterName:
+            Ref: UserKeyParameterStore
+      Environment:
+        Variables:
+          S3_BUCKET_FOR_CERTS:
+            Ref: S3BucketForKeys
+          CERT_EXPIRY_IN_DAYS: 30
+          SERVER_CERT_FILE_NAME:
+            Ref: ServerCertFile
+          SERVER_KEY_FILE_NAME:
+            Ref: ServerKeyFile
+          SERVER_KEY_PASS_PARAM:
+            Ref: ServerKeyParameterStore
+          USER_KEY_PASS_PARAM:
+            Ref: UserKeyParameterStore
+          WRITE_CONSOLE_LOG: 'false'
+          FORCE_CREATE_NEW_USER_CERT: 'false'
+          SAP_ENDPOINT_URL: <<YOUR SAP ENDPOINT URL FOR TESTING>>
+      Layers:
+      - Ref: SAPUserCertGeneratorLayer
+Outputs:
+  SAPUserCertAuthTestFunction:
+    Description: SAP user cert auth test function ARN
+    Value:
+      Fn::GetAtt:
+      - SAPUserCertAuthTestFunction
+      - Arn
