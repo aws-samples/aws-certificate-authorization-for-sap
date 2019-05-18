@@ -1,9 +1,10 @@
 # aws-sap-cert-auth
 
-This is a SAM template for creating Lambda functions and lambda layers for generating user certificates for SAP and single signon the user to SAP from lambda using the generated user certificates
+This is a SAM template for creating Lambda functions and lambda layers for generating user certificates for SAP, on the fly. The certificates enable single signon to SAP from lambda thereby maintaining the user context between AWS services and SAP applications (ABAP stack only)
 
 ```bash
 .
+├── README.MD                   <-- This instructions file
 ├── README.MD                   <-- This instructions file
 ├── event.json                  <-- API Gateway Proxy Integration event payload
 ├── hello_world                 <-- Source code for a lambda function

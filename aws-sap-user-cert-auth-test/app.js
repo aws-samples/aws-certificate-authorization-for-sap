@@ -27,7 +27,7 @@ exports.lambdaHandler = async (event, context) => {
             config.writeConsoleLog = true    
         }
         //config.userId = getUserId(event)
-        config.userId = 'awsuser1'
+        config.userId = 'awsuser2'
         userCertGenerator.loadConfig(config)
 
         var passPhrases= await getSecretsFromParameterStore(config.userKeyPassParam)
@@ -112,11 +112,16 @@ function getDataFromSAP(userCertJson,userKeyPass){
 
             if(process.env.REJECT_SELF_SIGNED_CERTS && process.env.REJECT_SELF_SIGNED_CERTS.toLowerCase()==="false"){
                 options.rejectUnauthorized = false
+            }else{
+                options.rejectUnauthorized = true
             }
-            
-            options.url = process.env.SAP_ENDPOINT_URL
-            options.method = 'GET'
-            options.json = true 
+            options.headers = {
+                "Content-type": "text/xml",
+            }
+            options.url = process.env.SAP_ENDPOINT_URL + '/sap/bc/soap/rfc' 
+            options.method = 'POST'
+            options.body = require('./rfcrequest.js')
+            //options.json = true 
             request(options, (requestError, response, body) => {
                 if (requestError) {
                     console.log('Response from SAP error is', requestError.message)

@@ -1,5 +1,7 @@
 #Local
 local/
-
+build.sh
+packaged.yaml
+sam
 .DS_Store
 
