@@ -5,22 +5,10 @@ This is a sample serverless application (based on AWS Serverless Application Mod
 ## Requirements
 
 * [AWS CLI already configured with Administrator permission](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html)
-* [NodeJS 8.10+ installed](https://nodejs.org/en/download/)
-* [Docker installed](https://www.docker.com/community-edition)
-* [AWS SAM CLI installed](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
 * SAP application (ABAP stack). If required, you can create an SAP ABAP developer edition using cloud formation template [here](https://github.com/aws-samples/aws-cloudformation-sap-abap-dev)
 * SAP application should be configured for SSL support. Check [here](https://help.sap.com/viewer/e73bba71770e4c0ca5fb2a3c17e8e229/7.5.8/en-US/4923501ebf5a1902e10000000a42189c.html) for more info. If you are using SAP ABAP Developer edition, this step is not required.
 
 ## Setup Process
-
-### Installation
-
-1. Clone this repo to a folder of your choice
-
-2. Navigate to the root folder of the cloned repo and then perform the preparation steps.
-```bash
-cd aws-sap-cert-auth
-```
 
 ### Preparation
 
@@ -77,97 +65,61 @@ aws s3 cp server.key s3://<your account id>-sap-cert-based-auth-keys>
 
 9. Maintain a generic rule for certificate mapping using transaction code CERTRULE. For creating the rule based on a certificate, use the user certificate you created in step 4 above. Check [here](https://help.sap.com/viewer/d528eef3dca14679bcb47b069aa17a9d/1709%20001/en-US/7c6d4b04370e40319ad790b554aa9a0b.html) for more information
 
-### Local Testing
+### Installation
 
-**Invoking function locally using a local sample payload**
+1. Provide the following values for Application Settings
 
-1. Create a file with name environment.json. Use the following format
+| Variable | Value |
+| -------- | ----- |
+| Application name | The stack name of this application created via AWS CloudFormation. For e.g. aws-sap-cert-auth |
+| Environment | Unique name to add all the resources that are created through this template. For e.g. aws-sap-cert-auth  |
+| S3BucketForKeys | Name of the S3 bucket where the certificates and keys will be stored. Provide the S3 bucket name that you created in preparation step 6. For 'sap-cert-based-auth-keys' |
+| ServerKeyParameterStore | Name of the parameter store where SAP Server Key is stored. Provide the paramter store parameter that you created in preparation step 1 here |
+| UserKeyParameterStore | Name of the parameter store where User Server Key is stored. Provide the paramter store parameter that you created in preparation step 2 here|
+| ServerCertFile | Name of the Server Certificate file. Provide the name of the server certificate you created in preparation step 3 here. For e.g. server.crt |
+| ServerKeyFile | Name of the Server Key file. Provide the name of the server key you created in preparation step 5 here. For e.g. server.key |
+
+2. Click on 'Deploy' to deploy this application. This should launch a cloud formation stack to created the required resources.
+
+### Testing
+
+1. Go to the Cloudformation stack outputs and get the name of the test Lambda function created. The output displays the ARN of the Lambda funnction created.
+
+2. Go to the Lambda function console and update the following environment variables
+
+| Variable | Value |
+| -------- | ----- |
+| SAP_HOST_URL | Provide your SAP host url. For e.g. mysaphttpurl.com without https:// |
+| SAP_HOST_PORT | Provide the HTTPs port for your SAP application. For e.g. 44300 |
+| REJECT_SELF_SIGNED_CERTS | Change it to false if you are using self signed certificates |
+
+3. Create a text event using the sample payload provided below. Below is a sample for Cognito federated identities. 
 ```javascript
 {
-    "SAPUserCertAuthTestFunction": {
-        "S3_BUCKET_FOR_CERTS" :  "<<Your bucket name from preparation step 6>>",
-        "CERT_EXPIRY_IN_DAYS" :  30,
-        "SERVER_CERT_FILE_NAME" : "server.crt",
-        "SERVER_KEY_FILE_NAME" : "server.key",
-        "SERVER_KEY_PASS_PARAM" : "<<Parameter name from perparation step 1>>",
-        "USER_KEY_PASS_PARAM" : "<<Parameter name from perparation step 2>>",
-        "FORCE_CREATE_NEW_USER_CERT" : "false",
-        "WRITE_CONSOLE_LOG" : "false",
-        "REJECT_SELF_SIGNED_CERTS": "true", // Change it to false for production
-        "SAP_HOST_URL": "mysapapplication.com", // Hostname or IP of your SAP application. Protocol (HTTPs) not required
-        "SAP_HOST_PORT": "443" 
-     }
+    "requestContext" : {
+        "authorizer" : {
+            "claims" : {
+                "identities": {
+                    "userId": "DEVELOPER"
+                }
+            }
+        }
+    }
 }
 ```
 
-2. Start the Lambda function locally. Note down the end point url where Lambda is running. Usually http://127.0.0.1:3001
-```bash
-
-sam local start-lambda \
-    --env-vars environment.json \
-    --template ../template.yaml \
-    --parameter-overrides \
-        'ParameterKey=ServerKeyParameterStore,ParameterValue=<<Parameter name from perparation step 1>> ParameterKey=UserKeyParameterStore,ParameterValue=<<Parameter name from perparation step 1>> ParameterKey=S3BucketForKeys,ParameterValue=<<Your bucket name from preparation step 6>>'
-
+4. Execute the test and validate the results. If all works fine, you should get a response from SAP with the user ID of the logged in user. Try changing the userId value in the test JSON and validate the responses you receive from SAP. You should get a response payload as below. Check the <USERNAME> value and it should be the same as the one you provided in the test input event. 
+```javascript
+{
+  "success": true,
+  "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><SOAP-ENV:Envelope xmlns:SOAP-ENC=\"http://schemas.xmlsoap.org/soap/encoding/\" xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\"><SOAP-ENV:Body><urn:ME_GET_CURRENT_USER_ID.Response xmlns:urn=\"urn:sap-com:document:sap:rfc:functions\"><USERNAME>DEVELOPER</USERNAME></urn:ME_GET_CURRENT_USER_ID.Response></SOAP-ENV:Body></SOAP-ENV:Envelope>"
+}
 ```
-
-3. Open another terminal window and run the following command to invoke the lambda function. Validate the local endpoint url for Lambda
-```bash
-
-aws lambda invoke \
-    --function-name "SAPUserCertAuthTestFunction" \
-    --endpoint-url "http://127.0.0.1:3001" \
-    --no-verify-ssl \
-    out.txt
-
-```
-4. Once run, check out.txt which should have the output of the lambda function
 
 ### Error Handling
 
 In case of errors, do the following
 
-1. Change the value of WRITE_CONSOLE_LOG variable to true in the environment.json file. This will write more logs in the terminal window
+1. Change the value of WRITE_CONSOLE_LOG variable to true in the lambda environment variables. This will write more logs in the terminal window
 
 2. Make sure you are able to access your SAP application. In case authentication errors from SAP (for e.g. 401), make sure you have set up STRUST(preparation step 8) and CERTRULE (preparation step 9) correctly. Increase the trace level in SMICM and check for any errors.
-
-## Deployment
-
-1. Create a S3 bucket for storing latest version of your SAM app. If you are using an existing bucket, proceeed to step 2
-```bash
-
-aws s3 mb s3://<your account id>-sap-cert-based-auth-sam-app>
-
-```
-
-2. Package the SAM app
-```bash
-
-sam package \
-    --output-template-file packaged.yaml \
-    --s3-bucket <<Your S3 bucket for SAM apps created above>>
-
-```
-
-3. Deploy the SAM app
-```bash
-aws cloudformation deploy \
-    --template-file packaged.yaml \
-    --stack-name sapcertauth \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-    Environment=sapcertauth \
-    ServerKeyParameterStore=<<Parameter name from perparation step 1>> \
-    UserKeyParameterStore=<<Parameter name from perparation step 2>>  \
-    S3BucketForKeys=<<Your bucket name from preparation step 6>>  \
-    ServerCertFile=<<Server certificate file create in preparation step 3. for e.g. server.crt>> \
-    ServerKeyFile=<<Server certificate file create in preparation step 5. for e.g. server.key>>
-```
-
-## Cleanup
-
-In order to delete our Serverless Application recently deployed you can use the following AWS CLI Command:
-```bash
-aws cloudformation delete-stack --stack-name sapcertauth
-```
-
