@@ -1,124 +1,183 @@
 # aws-sap-cert-auth
 
-This is a SAM template for creating Lambda functions and lambda layers for generating user certificates for SAP, on the fly. The certificates enable single signon to SAP from lambda thereby maintaining the user context between AWS services and SAP applications (ABAP stack only)
-
-```bash
-.
-├── README.MD                   <-- This instructions file
-├── README.MD                   <-- This instructions file
-├── event.json                  <-- API Gateway Proxy Integration event payload
-├── hello_world                 <-- Source code for a lambda function
-│   └── app.js                  <-- Lambda function code
-│   └── package.json            <-- NodeJS dependencies and scripts
-│   └── tests                   <-- Unit tests
-│       └── unit
-│           └── test-handler.js
-├── template.yaml               <-- SAM template
-```
+This is a sample serverless application (based on AWS Serverless Application Model - AWS SAM) for single signon to SAP applications from AWS Lambda using certificate based user authentication. This application package contains a Lambda layer to generate SAP user certificates based on the user context. Both Cognito and IAM users are supported. Federated Cognito IDs are supported as well. The package also contains a sample Lambda function that connects with a backend SAP application and authenticates using certificates.
 
 ## Requirements
 
-* AWS CLI already configured with Administrator permission
+* [AWS CLI already configured with Administrator permission](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html)
 * [NodeJS 8.10+ installed](https://nodejs.org/en/download/)
 * [Docker installed](https://www.docker.com/community-edition)
+* [AWS SAM CLI installed](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
+* SAP application (ABAP stack). If required, you can create an SAP ABAP developer edition using cloud formation template [here](https://github.com/aws-samples/aws-cloudformation-sap-abap-dev)
+* SAP application should be configured for SSL support. Check [here](https://help.sap.com/viewer/e73bba71770e4c0ca5fb2a3c17e8e229/7.5.8/en-US/4923501ebf5a1902e10000000a42189c.html) for more info. If you are using SAP ABAP Developer edition, this step is not required.
 
-## Setup process
+## Setup Process
 
-### Local development
+### Installation
+
+1. Clone this repo to a folder of your choice
+
+2. Navigate to the root folder of the cloned repo and then perform the preparation steps.
+
+```bash
+cd aws-sap-cert-auth
+```
+
+### Preparation
+
+1. Create parameter store entry for storing server key passphrase. Make sure to change the name and value as required. 
+
+```bash
+aws ssm put-parameter \
+    --name saponaws-cert-auth-server-passphrase \
+    --description "Parameter to store Server Key Pass Phrase for SAP Certs" \
+    --value 12345 \
+    --type "SecureString" \
+    --overwrite \
+```
+
+2. Create parameter store entry for storing user key passphrase. Make sure to change the name and value as required. 
+
+```bash
+aws ssm put-parameter \
+    --name saponaws-cert-auth-user-passphrase \
+    --description "Parameter to store User Key Pass Phrase for SAP Certs" \
+    --value 12345 \
+    --type "SecureString" \
+    --overwrite \
+```
+
+3. Create Server Cert and keys. In production you will use a CA signed cert. For development purposes, you can create a self signed certificate. Make sure to change the subject parameter as required. 
+
+```bash
+openssl req -x509 -newkey rsa:2048 -keyout servertmp.key -out server.crt -nodes -days 365 -subj "/CN=SAPonAWS/O=AWS/L=Seattle/C=US"
+```
+
+4. Create Test User certificate. You create this only for configuring rule based user mapping in SAP later. You don't have to change the subject parameter.
+
+```bash
+openssl req -newkey rsa:2048 -keyout usertmp.key -out user.csr -nodes -days 365 -subj "/CN=UNKNOWN"
+openssl x509 -req -in user.csr -CA server.crt -CAkey servertmp.key -out user.crt -set_serial 01 -days 365
+```
+
+5. Protect the Server Key with password you used in step 1 (value provided for the SSM parameter saponaws-cert-auth-server-passphrase). Make sure to change pass value in the command below
+```bash
+openssl rsa -aes256 -in servertmp.key -out server.key -passout pass:12345
+rm servertmp.key
+```
+
+6. Create an S3 bucket to store server and user certificates. Only approved Lambda functions should have read access to this bucket. Make sure to change the bucket name as required
+```bash
+aws s3 mb s3://<your account id>-sap-cert-based-auth-keys>
+```
+
+7. Upload the server key and certficate to the S3 bucket created above
+```bash
+aws s3 cp server.crt s3://<your account id>-sap-cert-based-auth-keys>
+aws s3 cp server.key s3://<your account id>-sap-cert-based-auth-keys>
+```
+
+8. Logon to SAP Application and upload the Server Certificate (server.crt) to transaction code STRUST. Make sure to load it under SSL Server Standard (see image below)
+![SAP STRUST](/images/sap_strust.png?raw=true)
+
+9. Maintain a generic rule for certificate mapping using transaction code CERTRULE. For creating the rule based on a certificate, use the user certificate you created in step 4 above. Check [here](https://help.sap.com/viewer/d528eef3dca14679bcb47b069aa17a9d/1709%20001/en-US/7c6d4b04370e40319ad790b554aa9a0b.html) for more information
+
+### Local Testing
 
 **Invoking function locally using a local sample payload**
 
-```bash
-sam local invoke HelloWorldFunction --event event.json
-```
- 
-**Invoking function locally through local API Gateway**
+1. Create a file with name environment.json. Use the following format
 
-```bash
-sam local start-api
-```
-
-If the previous command ran successfully you should now be able to hit the following local endpoint to invoke your function `http://localhost:3000/hello`
-
-**SAM CLI** is used to emulate both Lambda and API Gateway locally and uses our `template.yaml` to understand how to bootstrap this environment (runtime, where the source code is, etc.) - The following excerpt is what the CLI will read in order to initialize an API and its routes:
-
-```yaml
-...
-Events:
-    HelloWorld:
-        Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-        Properties:
-            Path: /hello
-            Method: get
+```json
+{
+    "SAPUserCertAuthTestFunction": {
+        "S3_BUCKET_FOR_CERTS" :  "<<Your bucket name from preparation step 6>>",
+        "CERT_EXPIRY_IN_DAYS" :  30,
+        "SERVER_CERT_FILE_NAME" : "server.crt",
+        "SERVER_KEY_FILE_NAME" : "server.key",
+        "SERVER_KEY_PASS_PARAM" : "<<Parameter name from perparation step 1>>",
+        "USER_KEY_PASS_PARAM" : "<<Parameter name from perparation step 2>>",
+        "FORCE_CREATE_NEW_USER_CERT" : "false",
+        "WRITE_CONSOLE_LOG" : "false",
+        "REJECT_SELF_SIGNED_CERTS": "true", // Change it to false for production
+        "SAP_HOST_URL": "mysapapplication.com", // Hostname or IP of your SAP application. Protocol (HTTPs) not required
+        "SAP_HOST_PORT": "443" 
+     }
+    
+}
 ```
 
-## Packaging and deployment
-
-AWS Lambda NodeJS runtime requires a flat folder with all dependencies including the application. SAM will use `CodeUri` property to know where to look up for both application and dependencies:
-
-```yaml
-...
-    HelloWorldFunction:
-        Type: AWS::Serverless::Function
-        Properties:
-            CodeUri: hello-world/
-            ...
-```
-
-Firstly, we need a `S3 bucket` where we can upload our Lambda functions packaged as ZIP before we deploy anything - If you don't have a S3 bucket to store code artifacts then this is a good time to create one:
+2. Start the Lambda function locally
 
 ```bash
-aws s3 mb s3://BUCKET_NAME
+
+sam local start-lambda \
+    --env-vars environment.json \
+    --template ../template.yaml \
+    --parameter-overrides \
+        'ParameterKey=ServerKeyParameterStore,ParameterValue=<<Parameter name from perparation step 1>> ParameterKey=UserKeyParameterStore,ParameterValue=<<Parameter name from perparation step 1>> ParameterKey=S3BucketForKeys,ParameterValue=<<Your bucket name from preparation step 6>>'
+
 ```
 
-Next, run the following command to package our Lambda function to S3:
+Note down the end point url where Lambda is running. Usually http://127.0.0.1:3001
+
+3. Open another terminal window and run the following command to invoke the lambda function. Validate the local endpoint url for Lambda
 
 ```bash
+
+aws lambda invoke \
+    --function-name "SAPUserCertAuthTestFunction" \
+    --endpoint-url "http://127.0.0.1:3001" \
+    --no-verify-ssl \
+    out.txt
+
+```
+4. Once run, check out.txt which should have the output of the lambda function
+
+### Error Handling
+
+In case of errors, do the following
+
+1. Change the value of WRITE_CONSOLE_LOG variable to true in the environment.json file. This will write more logs in the terminal window
+
+2. Make sure you are able to access your SAP application. In case authentication errors from SAP (for e.g. 401), make sure you have set up STRUST(preparation step 8) and CERTRULE (preparation step 9) correctly. Increase the trace level in SMICM and check for any errors.
+
+## Deployment
+
+1. Create a S3 bucket for storing latest version of your SAM app. If you are using an existing bucket, proceeed to step 2
+
+```bash
+
+aws s3 mb s3://<your account id>-sap-cert-based-auth-sam-app>
+
+```
+
+2. Package the SAM app
+
+```bash
+
 sam package \
     --output-template-file packaged.yaml \
-    --s3-bucket REPLACE_THIS_WITH_YOUR_S3_BUCKET_NAME
+    --s3-bucket <<Your S3 bucket for SAM apps created above>>
+
 ```
 
-Next, the following command will create a Cloudformation Stack and deploy your SAM resources.
+3. Deploy the SAM app
 
 ```bash
-sam deploy \
+
+aws cloudformation deploy \
     --template-file packaged.yaml \
-    --stack-name aws-sap-cert-auth \
-    --capabilities CAPABILITY_IAM
-```
+    --stack-name sapcertauth \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides \
+    Environment=sapcertauth \
+    ServerKeyParameterStore=<<Parameter name from perparation step 1>> \
+    UserKeyParameterStore=<<Parameter name from perparation step 2>>  \
+    S3BucketForKeys=<<Your bucket name from preparation step 6>>  \
+    ServerCertFile=<<Server certificate file create in preparation step 3. for e.g. server.crt>> \
+    ServerKeyFile=<<Server certificate file create in preparation step 5. for e.g. server.key>>
 
-> **See [Serverless Application Model (SAM) HOWTO Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-quick-start.html) for more details in how to get started.**
-
-After deployment is complete you can run the following command to retrieve the API Gateway Endpoint URL:
-
-```bash
-aws cloudformation describe-stacks \
-    --stack-name aws-sap-cert-auth \
-    --query 'Stacks[].Outputs[?OutputKey==`HelloWorldApi`]' \
-    --output table
-``` 
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called sam logs. sam logs lets you fetch logs generated by your Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
-
-```bash
-sam logs -n HelloWorldFunction --stack-name aws-sap-cert-auth --tail
-```
-
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Testing
-
-We use `mocha` for testing our code and it is already added in `package.json` under `scripts`, so that we can simply run the following command to run our tests:
-
-```bash
-cd hello-world
-npm install
-npm run test
 ```
 
 ## Cleanup
@@ -126,82 +185,6 @@ npm run test
 In order to delete our Serverless Application recently deployed you can use the following AWS CLI Command:
 
 ```bash
-aws cloudformation delete-stack --stack-name aws-sap-cert-auth
+aws cloudformation delete-stack --stack-name sapcertauth
 ```
 
-## Bringing to the next level
-
-Here are a few things you can try to get more acquainted with building serverless applications using SAM:
-
-### Learn how SAM Build can help you with dependencies
-
-* Uncomment lines on `app.js`
-* Build the project with ``sam build --use-container``
-* Invoke with ``sam local invoke HelloWorldFunction --event event.json``
-* Update tests
-
-### Create an additional API resource
-
-* Create a catch all resource (e.g. /hello/{proxy+}) and return the name requested through this new path
-* Update tests
-
-### Step-through debugging
-
-* **[Enable step-through debugging docs for supported runtimes]((https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-debugging.html))**
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
-
-# Appendix
-
-## Building the project
-
-[AWS Lambda requires a flat folder](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-create-deployment-pkg.html) with the application as well as its dependencies in a node_modules folder. When you make changes to your source code or dependency manifest,
-run the following command to build your project local testing and deployment:
-
-```bash
-sam build
-```
-
-If your dependencies contain native modules that need to be compiled specifically for the operating system running on AWS Lambda, use this command to build inside a Lambda-like Docker container instead:
-```bash
-sam build --use-container
-```
-
-By default, this command writes built artifacts to `.aws-sam/build` folder.
-
-## SAM and AWS CLI commands
-
-All commands used throughout this document
-
-```bash
-# Invoke function locally with event.json as an input
-sam local invoke HelloWorldFunction --event event.json
-
-# Run API Gateway locally
-sam local start-api
-
-# Create S3 bucket
-aws s3 mb s3://BUCKET_NAME
-
-# Package Lambda function defined locally and upload to S3 as an artifact
-sam package \
-    --output-template-file packaged.yaml \
-    --s3-bucket REPLACE_THIS_WITH_YOUR_S3_BUCKET_NAME
-
-# Deploy SAM template as a CloudFormation stack
-sam deploy \
-    --template-file packaged.yaml \
-    --stack-name aws-sap-cert-auth \
-    --capabilities CAPABILITY_IAM
-
-# Describe Output section of CloudFormation stack previously created
-aws cloudformation describe-stacks \
-    --stack-name aws-sap-cert-auth \
-    --query 'Stacks[].Outputs[?OutputKey==`HelloWorldApi`]' \
-    --output table
-
-# Tail Lambda function Logs using Logical name defined in SAM Template
-sam logs -n HelloWorldFunction --stack-name aws-sap-cert-auth --tail
-```
-
-**NOTE**: Alternatively this could be part of package.json scripts section.

@@ -7,6 +7,10 @@ Globals:
   Function:
     Timeout: 29
 Parameters:
+  Environment:
+    Description: Unique name to add all the resources that are created through this
+      template
+    Type: String
   ServerKeyParameterStore:
     Description: Name of the parameter store where SAP Server Key is stored
     Type: String
@@ -29,22 +33,23 @@ Metadata:
     Author: KK Ramamoorthy
     SpdxLicenseId: MIT
     LicenseUrl: s3://967217190592-sam-apps/4ae9b13413d0c0f6c04a043f00f3d8e7
-    ReadmeUrl: s3://967217190592-sam-apps/2772119fb1559c8fd42a9da4a51ff7f7
+    ReadmeUrl: s3://967217190592-sam-apps/527fcc551fa2e8009b31774ea191571a
     Labels:
     - saponaws
     - sap
     - lambdaauth
     - certificateauth
-    HomePageUrl: https://github.com/aws-samples/aws-lambda-sap-oauth
+    HomePageUrl: https://code.amazon.com/packages/Aws-sap-cert-auth/trees/master
     SemanticVersion: 0.0.1
-    SourceCodeUrl: https://github.com/aws-samples/aws-lambda-sap-oauth
+    SourceCodeUrl: https://code.amazon.com/packages/Aws-sap-cert-auth/trees/master
 Resources:
   SAPUserCertGeneratorLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: aws-sap-user-cert-generator
+      LayerName:
+        Fn::Sub: ${Environment}-aws-sap-user-cert-generator
       Description: Lamda Layer to generate user certificate for SAP
-      ContentUri: s3://967217190592-sam-apps/452ebcb3a4a4953ca2dec1045dffac3a
+      ContentUri: s3://967217190592-sam-apps/cf9145dc19cf6e26e88a60303386ed47
       CompatibleRuntimes:
       - nodejs8.10
       LicenseInfo: Available under the MIT-0 license.
@@ -52,8 +57,9 @@ Resources:
   SAPUserCertAuthTestFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: aws-sap-user-cert-auth-test
-      CodeUri: s3://967217190592-sam-apps/4f92a59b63087071d08dc4256cce34ee
+      FunctionName:
+        Fn::Sub: ${Environment}-aws-sap-user-cert-auth-test
+      CodeUri: s3://967217190592-sam-apps/a09008c0a718de9572cae2e26ea9d980
       Handler: app.lambdaHandler
       Runtime: nodejs8.10
       Policies:
@@ -81,7 +87,10 @@ Resources:
             Ref: UserKeyParameterStore
           WRITE_CONSOLE_LOG: 'false'
           FORCE_CREATE_NEW_USER_CERT: 'false'
-          SAP_ENDPOINT_URL: <<YOUR SAP ENDPOINT URL FOR TESTING>>
+          REJECT_SELF_SIGNED_CERTS: 'true'
+          SAP_HOST_URL: <<YOUR SAP HOST URL. For e.g. mysaphttpurl.com without https://
+            >>
+          SAP_HOST_PORT: <<YOUR SAP HTTPs port. For e.g. 44300>>
       Layers:
       - Ref: SAPUserCertGeneratorLayer
 Outputs:

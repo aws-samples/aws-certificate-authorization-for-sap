@@ -7,6 +7,9 @@ Globals:
     Function:
         Timeout: 29
 Parameters:
+    Environment:
+        Description: Unique name to add all the resources that are created through this template 
+        Type: String
     ServerKeyParameterStore:
         Description: Name of the parameter store where SAP Server Key is stored
         Type: String
@@ -30,17 +33,17 @@ Metadata:
     Author: KK Ramamoorthy
     SpdxLicenseId: MIT
     LicenseUrl: LICENSE.txt
-    ReadmeUrl: README.md
+    ReadmeUrl: sam-repo/README.md
     Labels: ['saponaws','sap','lambdaauth','certificateauth']
-    HomePageUrl: https://github.com/aws-samples/aws-lambda-sap-oauth
+    HomePageUrl: https://code.amazon.com/packages/Aws-sap-cert-auth/trees/master
     SemanticVersion: 0.0.1
-    SourceCodeUrl: https://github.com/aws-samples/aws-lambda-sap-oauth
+    SourceCodeUrl: https://code.amazon.com/packages/Aws-sap-cert-auth/trees/master
 
 Resources:
     SAPUserCertGeneratorLayer:
         Type: AWS::Serverless::LayerVersion
         Properties:
-            LayerName: aws-sap-user-cert-generator
+            LayerName: !Sub ${Environment}-aws-sap-user-cert-generator
             Description: Lamda Layer to generate user certificate for SAP
             ContentUri: layers/aws-sap-user-cert-generator/
             CompatibleRuntimes:
@@ -51,7 +54,7 @@ Resources:
     SAPUserCertAuthTestFunction:
         Type: AWS::Serverless::Function
         Properties:
-            FunctionName: aws-sap-user-cert-auth-test
+            FunctionName: !Sub ${Environment}-aws-sap-user-cert-auth-test
             CodeUri: aws-sap-user-cert-auth-test/
             Handler: app.lambdaHandler
             Runtime: nodejs8.10
@@ -73,12 +76,12 @@ Resources:
                     WRITE_CONSOLE_LOG:      "false"
                     FORCE_CREATE_NEW_USER_CERT: "false"
                     REJECT_SELF_SIGNED_CERTS: "true"
-                    SAP_ENDPOINT_URL: "<<YOUR SAP ENDPOINT URL FOR TESTING>>"
+                    SAP_HOST_URL: "<<YOUR SAP HOST URL. For e.g. mysaphttpurl.com without https:// >>"
+                    SAP_HOST_PORT: "<<YOUR SAP HTTPs port. For e.g. 44300>>"
             Layers:
                 - !Ref SAPUserCertGeneratorLayer
 
 Outputs:
-    
     SAPUserCertAuthTestFunction:
         Description: "SAP user cert auth test function ARN"
         Value: !GetAtt SAPUserCertAuthTestFunction.Arn

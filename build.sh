@@ -1,4 +1,4 @@
-# /bin/bash
+#!/bin/bash
 
 # ======= Change these values [REQUIRED] ======= #
 : ${UserKeyPassPhrase:=""}
@@ -53,8 +53,6 @@ aws s3 mb s3://$S3BucketForKeys --region $Region
 aws s3 cp $ServerCertFile s3://$S3BucketForKeys
 aws s3 cp $ServerKeyFile s3://$S3BucketForKeys
 
-aws s3 mb s3://$S3BucketForSAMApp --region $Region
-
 # Deploy the app
 sam package \
     --output-template-file packaged.yaml \
@@ -65,6 +63,7 @@ aws cloudformation deploy \
     --stack-name $Environment \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
+    Environment=$Environment \
     ServerKeyParameterStore=$ServerKeyParameterStore \
     UserKeyParameterStore=$UserKeyParameterStore  \
     S3BucketForKeys=$S3BucketForKeys  \
