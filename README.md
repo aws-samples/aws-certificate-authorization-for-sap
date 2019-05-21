@@ -18,7 +18,6 @@ This is a sample serverless application (based on AWS Serverless Application Mod
 1. Clone this repo to a folder of your choice
 
 2. Navigate to the root folder of the cloned repo and then perform the preparation steps.
-
 ```bash
 cd aws-sap-cert-auth
 ```
@@ -26,7 +25,6 @@ cd aws-sap-cert-auth
 ### Preparation
 
 1. Create parameter store entry for storing server key passphrase. Make sure to change the name and value as required. 
-
 ```bash
 aws ssm put-parameter \
     --name saponaws-cert-auth-server-passphrase \
@@ -37,7 +35,6 @@ aws ssm put-parameter \
 ```
 
 2. Create parameter store entry for storing user key passphrase. Make sure to change the name and value as required. 
-
 ```bash
 aws ssm put-parameter \
     --name saponaws-cert-auth-user-passphrase \
@@ -48,13 +45,11 @@ aws ssm put-parameter \
 ```
 
 3. Create Server Cert and keys. In production you will use a CA signed cert. For development purposes, you can create a self signed certificate. Make sure to change the subject parameter as required. 
-
 ```bash
 openssl req -x509 -newkey rsa:2048 -keyout servertmp.key -out server.crt -nodes -days 365 -subj "/CN=SAPonAWS/O=AWS/L=Seattle/C=US"
 ```
 
 4. Create Test User certificate. You create this only for configuring rule based user mapping in SAP later. You don't have to change the subject parameter.
-
 ```bash
 openssl req -newkey rsa:2048 -keyout usertmp.key -out user.csr -nodes -days 365 -subj "/CN=UNKNOWN"
 openssl x509 -req -in user.csr -CA server.crt -CAkey servertmp.key -out user.crt -set_serial 01 -days 365
@@ -87,7 +82,6 @@ aws s3 cp server.key s3://<your account id>-sap-cert-based-auth-keys>
 **Invoking function locally using a local sample payload**
 
 1. Create a file with name environment.json. Use the following format
-
 ```json
 {
     "SAPUserCertAuthTestFunction": {
@@ -108,7 +102,6 @@ aws s3 cp server.key s3://<your account id>-sap-cert-based-auth-keys>
 ```
 
 2. Start the Lambda function locally
-
 ```bash
 
 sam local start-lambda \
@@ -122,7 +115,6 @@ sam local start-lambda \
 Note down the end point url where Lambda is running. Usually http://127.0.0.1:3001
 
 3. Open another terminal window and run the following command to invoke the lambda function. Validate the local endpoint url for Lambda
-
 ```bash
 
 aws lambda invoke \
@@ -145,7 +137,6 @@ In case of errors, do the following
 ## Deployment
 
 1. Create a S3 bucket for storing latest version of your SAM app. If you are using an existing bucket, proceeed to step 2
-
 ```bash
 
 aws s3 mb s3://<your account id>-sap-cert-based-auth-sam-app>
@@ -153,7 +144,6 @@ aws s3 mb s3://<your account id>-sap-cert-based-auth-sam-app>
 ```
 
 2. Package the SAM app
-
 ```bash
 
 sam package \
@@ -163,7 +153,6 @@ sam package \
 ```
 
 3. Deploy the SAM app
-
 ```bash
 
 aws cloudformation deploy \
@@ -183,7 +172,6 @@ aws cloudformation deploy \
 ## Cleanup
 
 In order to delete our Serverless Application recently deployed you can use the following AWS CLI Command:
-
 ```bash
 aws cloudformation delete-stack --stack-name sapcertauth
 ```
