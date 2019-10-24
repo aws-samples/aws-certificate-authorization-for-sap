@@ -19,7 +19,7 @@ aws ssm put-parameter \
     --description "Parameter to store Server Key Pass Phrase for SAP Certs" \
     --value 12345 \
     --type "SecureString" \
-    --overwrite \
+    --overwrite 
 ```
 
 2. Create parameter store entry for storing user key passphrase. Make sure to change the name and value as required. 
@@ -29,7 +29,7 @@ aws ssm put-parameter \
     --description "Parameter to store User Key Pass Phrase for SAP Certs" \
     --value 12345 \
     --type "SecureString" \
-    --overwrite \
+    --overwrite 
 ```
 
 3. Create Server Cert and keys. In production you will use a CA signed cert. For development purposes, you can create a self signed certificate. Make sure to change the subject parameter as required. 
