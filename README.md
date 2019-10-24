@@ -1,4 +1,4 @@
-# aws-sap-cert-auth
+## aws-certificate-authorization-for-sap
 
 This is a sample serverless application (based on AWS Serverless Application Model - AWS SAM) for single signon to SAP applications from AWS Lambda using certificate based user authentication. This application package contains a Lambda layer to generate SAP user certificates based on the user context. Both Cognito and IAM users are supported. Federated Cognito IDs are supported as well. The package also contains a sample Lambda function that connects with a backend SAP application and authenticates using certificates.
 
@@ -171,3 +171,6 @@ In order to delete our Serverless Application recently deployed you can use the 
 aws cloudformation delete-stack --stack-name sapcertauth
 ```
 
+## License Summary
+
+This sample code is made available under the MIT-0 license. See the LICENSE file.
