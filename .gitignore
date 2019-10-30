@@ -1,7 +1,21 @@
 #Local
 local/
+certificates/
 build.sh
 packaged.yaml
 sam
 .DS_Store
 sam-repo/
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+node_modules
+!lib/**/node_modules
+
+#Certs
+server.crt
+server.key
+user.crt
+user.key

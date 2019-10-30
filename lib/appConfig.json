@@ -1,0 +1,28 @@
+{
+    "env" : {
+        "account" : "967217190592",
+        "region" : "us-east-1"
+    },
+    "stackName" : "SAPCertAuth",
+    "sap" : {
+        "saphostname" : "34.239.158.144",
+        "httpsPort" : 44300
+    },
+
+    "certificates" : {
+        "certExpiryInDays" : "30",
+        "serverCertCommonName" : "SAPonAWS",
+        "serverCertOrg" : "AWS",
+        "serverCertLocation" : "Philadelphia",
+        "serverCertCountry" : "US",
+        "userCertSampleUser" : "DEVELOPER"
+    },
+
+    "cfexports":{
+        "SAPDemoProxyUrl" : "SAPDemoProxyUrl",
+        "DDBForCertAuth": "DDBForCertAuth",
+        "ServerCertGenLambda" : "ServerCertGenLambda",
+        "RoleforExecuteAPI" : "RoleforExecuteAPI"
+    }
+
+}
