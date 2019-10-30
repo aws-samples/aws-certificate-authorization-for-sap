@@ -45,7 +45,7 @@ node ./lib/aws-sap-cert-auth-pp-stack.js
 8. Logon to SAP Application and upload the Server Certificate (server.crt from certificates folder) to transaction code STRUST. Make sure to load it under SSL Server Standard (see image below)
 ![SAP STRUST](/images/sap_strust.png?raw=true)
 
-9. Maintain a generic rule for certificate mapping using transaction code CERTRULE. For creating the rule based on a certificate, use the user certificate you created in step 4 above. Check [here](https://help.sap.com/viewer/d528eef3dca14679bcb47b069aa17a9d/1709%20001/en-US/7c6d4b04370e40319ad790b554aa9a0b.html) for more information
+9. Maintain a generic rule for certificate mapping using transaction code CERTRULE. For creating the rule based on a certificate, use the sample user certificate (sampleuser.crt from certificates folder) created in step 7 above. Check [here](https://help.sap.com/viewer/d528eef3dca14679bcb47b069aa17a9d/1709%20001/en-US/7c6d4b04370e40319ad790b554aa9a0b.html) for more information
 
 ### Testing
 
