@@ -14,7 +14,7 @@
         "serverCertOrg" : "AWS",
         "serverCertLocation" : "Philadelphia",
         "serverCertCountry" : "US",
-        "userCertSampleUser" : "DEVELOPER"
+        "userCertSampleUser" : "awsonsapapi@example.com"
     },
 
     "cfexports":{

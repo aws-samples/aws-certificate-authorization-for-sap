@@ -16,9 +16,10 @@ This is a sample serverless application for single signon to SAP applications fr
 
 1. Clone this repo to a folder of your choice
 
-2. Navigate to the root folder of the cloned repo and then perform the preparation steps.
+2. Navigate to the root folder of the cloned repo and then install the dependencies.
 ```bash
 cd aws-certificate-authorization-for-sap 
+npm install
 ```
 
 3. Navigate to the lib folder
