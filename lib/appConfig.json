@@ -1,14 +1,13 @@
 {
     "env" : {
-        "account" : "967217190592",
-        "region" : "us-east-1"
+        "account" : "<YOUR AWS ACCOUNT NO.>",
+        "region" : "YOUR AWS ACCOUNT REGION>"
     },
     "stackName" : "SAPCertAuth",
     "sap" : {
-        "saphostname" : "34.239.158.144",
+        "sapHostName" : "<YOUR SAP HOSTNAME OR IP>",
         "httpsPort" : 44300
     },
-
     "certificates" : {
         "certExpiryInDays" : "30",
         "serverCertCommonName" : "SAPonAWS",
@@ -24,5 +23,4 @@
         "ServerCertGenLambda" : "ServerCertGenLambda",
         "RoleforExecuteAPI" : "RoleforExecuteAPI"
     }
-
 }
